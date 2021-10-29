@@ -183,11 +183,10 @@ export default function Claim(props) {
                         </Typography> 
                     :
                         query === 'wrong-address' ?
-                            // this is a dead-end for now, reload required
-                                <Typography color="red">
-                                    {errorMessage}
-                                </Typography> 
-                            :
+                            <Typography color="red">
+                                {errorMessage}
+                            </Typography> 
+                        :
                 <Box sx={{
                     marginTop: "20px",
                     display: "flex",

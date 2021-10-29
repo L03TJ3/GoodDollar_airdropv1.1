@@ -1,0 +1,35 @@
+{
+  "name": "airdropui",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "post-update": "yarn upgrade --latest",
+    "start": "next start -p $PORT"
+  },
+  "dependencies": {
+    "@emotion/react": "11.5.0",
+    "@emotion/styled": "11.3.0",
+    "@mui/icons-material": "5.0.4",
+    "@mui/material": "5.0.4",
+    "@walletconnect/web3-provider": "^1.6.6",
+    "assert": "^2.0.0",
+    "crypto-browserify": "^3.12.0",
+    "https-browserify": "^1.0.0",
+    "merkle-tree-solidity": "1.0.8",
+    "next": "latest",
+    "os-browserify": "^0.3.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "stream-browserify": "^3.0.0",
+    "stream-http": "^3.2.0",
+    "url": "^0.11.0",
+    "web3": "^1.6.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.14.6"
+  },
+  "license": "MIT",
+  "keywords": [],
+  "description": ""
+}

@@ -1,0 +1,1 @@
+# GoodDollar_airdropv1.1

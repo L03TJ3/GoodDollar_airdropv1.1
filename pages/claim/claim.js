@@ -38,7 +38,7 @@ const SwitchAndConnectButton = styled(Button)({
 
 const ErrorSpan = ({message}) => {
     return (
-        <Typography className="when-triggered" variant="span" color="red">
+        <Typography variant="span" color="red">
             {message}
         </Typography> 
     );
@@ -53,8 +53,7 @@ export default function Claim(props) {
     const [initProvider, setInitProvider] = useState('init');
     const [chainId, setChainId] = useState(null);
     const {onClose, open} = props;
-    // const [loading, setLoading] = useState(false);
-    const [query, setQuery] = useState('idle');
+    const [query, setQuery] = useState('init');
     const [gRep, setGRep] = useState(null);
     const [providerInstance, setProviderInstance] = useState(null);
 
@@ -83,18 +82,15 @@ export default function Claim(props) {
     useEffect(() => {
         claimAddressRef.current = claimAddress;
     }, [claimAddress]);
-     
     
     // Chain changed triggered both through app-button and manual through wallet
-    const providerInit = useCallback((providerName, providerInstance) => {
-        console.log("how many? -->", providerName);
-        console.log("providerinstance providerInit -->", providerInstance);
+    const providerInit = useCallback((providerName, provInstanceRef) => {
         if (providerName == "MM") {
             let supportedChains = ['0x7a', '0x1', 1, 122].join(':');
             // Temporary, events might not be properly initialized?
             
             // Docs state that a window reload is recommended?
-            providerInstance.eth.currentProvider.on('chainChanged', (chainId) => {
+            provInstanceRef.eth.currentProvider.on('chainChanged', (chainId) => {
                 if (supportedChains.indexOf(chainId) !== -1) {
                     setError(null);
                     setQuery('idle');
@@ -112,16 +108,32 @@ export default function Claim(props) {
 
 
             // TODO: Handle connection of multiple accounts
-            providerInstance.eth.currentProvider.on('accountsChanged', (res) => {
-                console.log('metamask disconnect');
-                disconnect();
+            provInstanceRef.eth.currentProvider.on('accountsChanged', (res) => {
+                if (res.length === 0) {
+                    disconnect();
+                }
             });
         } else {
-            providerInstance.on("disconnect", (code, res) =>{
+
+            provInstanceRef.on("accountsChanged", (accounts) => {
+                console.log("wc accounts changed");
+                console.log('wc accounts changed --> accounts -->', accounts);
+            });
+
+            provInstanceRef.on("connect", () => {
+                console.log('wc connect');
+                // Might not be necessary?
+            });
+
+            provInstanceRef.on("chainChanged", (chainId) => {
+                console.log("wc chainChanged");
+                // do stuff
+            })
+
+            provInstanceRef.on("disconnect", (code, res) =>{
                 // code 1000 == disconnect
                 console.log('wc disconnect');
                 disconnect();
-  
             });
         }
     }, [initProvider]);
@@ -148,11 +160,8 @@ export default function Claim(props) {
             }
         });
 
-        
         // Check here if there is an existing Wallet-Connect connection
         // TODO: WC and Metamask should not? be able to be both connected
-
-
     }, [providerInit]);
 
     const connectForClaim = async (providerName) => {
@@ -162,19 +171,23 @@ export default function Claim(props) {
         // }
         if (query !== 'idle') {
             setQuery('idle');
-            return;
         }
 
         setQuery('loading-connect');
 
         let conAddr;
-        if (!providerInstance && providerName == "MM"){
-            console.log("initialize when not exists");
+
+        // console.log("during loading providerInstance -->", providerInstance);
+        // console.log('during loading providerInstanceRef -->', providerInstanceRef.current);
+
+        if (!providerInstanceRef.current && providerName == "MM"){
+            // user is not connected yet
             const web3 = new Web3(Web3.givenProvider || testUrl);
             setProviderInstance(web3);
             providerInit(providerName, web3);
             conAddr = walletConnect(providerName, web3);
-        } else if (providerInstance && providerName == "MM") {
+        } else if (providerInstanceRef.current && providerName == "MM") {
+            // user has exisiting MetaMask connection(s)
             conAddr = walletConnect(providerName, providerInstanceRef.current);
         } else {
             const Wc3 = new WalletConnectProvider({
@@ -183,29 +196,24 @@ export default function Claim(props) {
             setProviderInstance(Wc3);
             providerInit(providerName, Wc3);
             conAddr = walletConnect(providerName, Wc3);
-
         }
 
         conAddr.then((res) => {
-            console.log('connect response -->', res);
-            if (res.connectedAddress !== claimAddressRef.current) {
-                // disconnect by button and/or catch manually disconnecting
 
-                // TODO: manage disconnecting the wrong address. Answer: Can only be done by user
-                console.log('sorry, wrong address');
+            // Temp, just for testing Wallet-Connect
+            // if (res.connectedAddress !== claimAddressRef.current && res.connectedAddress !== infuraConfig.TrustWallet) {
+            if (res.connectedAddress !== claimAddressRef.current){
                 setError('Sorry, you are not connected to the right address. '+ 
-                         'Please disconnect first, then retry with the eligible address.');
+                            'Please disconnect first, then retry with the eligible address.');
                 setQuery('wrong-address');
             } else {
                 success(res, providerName);
             }
-
         }).catch((err) => {
             console.log('errorrrr -->', err);
             if (err.message == 'User closed modal'){
                 err.code = 311;
             }
-
             switch (err.code) {
                 case 4001, 311: 
                     cancelled();
@@ -252,6 +260,9 @@ export default function Claim(props) {
     }
 
     const success = (res, providerName) => {
+
+        // for wallet connect, don't show switch network buttons
+
         setConnectedChain(res.connectedChain);
         setChainId(res.chainId);
         setConnectedAddress(res.connectedAddress);
@@ -260,14 +271,18 @@ export default function Claim(props) {
     }
     
     const wrongNetwork = (res, providerName) => {
+        // When wallet is already connect
         if (query !== 'success') {
             success(res, providerName);
         };
 
         setError('Sorry, you seem to be connected to an unsupported network');
         setConnectedChain('unsupported');
-        setChainId('0x00');
         setQuery('wrong-network');
+        setChainId('0x00');
+
+        // Todo: When user connects account (with button) which is on the wrong network, 
+        //       setQuery is updated after this point?
     }
 
     const pending = () => {

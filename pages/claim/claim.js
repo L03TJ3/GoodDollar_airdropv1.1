@@ -57,7 +57,7 @@ export default function Claim(props) {
     const [gRep, setGRep] = useState(null);
     const [providerInstance, setProviderInstance] = useState(null);
 
-    let processingQuery = ['cancelled', 'wrong-address'].join(":");
+    let processingQuery = ['cancelled', 'wrong-address', 'pending'].join(":");
 
 
     // This should be with one useEffect?
@@ -228,16 +228,44 @@ export default function Claim(props) {
         });
     }
 
-    // Switching of network by button
-    const switchNetwork = async (chainId) => {  
-        let web3 = new Web3(Web3.givenProvider || testUrl);
-        web3.eth.currentProvider.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: chainId}]
-        }).then(() => {
-            // returns nothing
+    const addFuseNetwork = async(id) => {
+        providerInstanceRef.current.eth.currentProvider.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+                chainId: id,
+                chainName: 'Fuse Mainnet',
+                nativeCurrency: {
+                    name: 'Fuse',
+                    symbol: 'FUSE',
+                    decimals: 18
+                },
+                rpcUrls: ['https://rpc.fuse.io'],
+                blockExplorerUrls: ['https://explorer.fuse.io']
+            }],
         }).catch((err) => {
             switch (err.code) {
+                case -32002:
+                    pending();
+                    break;
+                case 4001:
+                    // loading-connect not added yet for this to work
+                    // cancelled();
+                    break;
+            }
+        });
+    }
+
+    // Switching of network by button
+    const switchNetwork = async (chainId) => {  
+        // let web3 = new Web3(Web3.givenProvider || testUrl);
+        providerInstanceRef.current.eth.currentProvider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: chainId}]
+        }).catch((err) => {
+            switch (err.code) {
+                case 4902:
+                    addFuseNetwork(chainId);
+                    break;
                 case -32002:
                     pending();
                     break;
@@ -280,12 +308,10 @@ export default function Claim(props) {
         setConnectedChain('unsupported');
         setQuery('wrong-network');
         setChainId('0x00');
-
-        // Todo: When user connects account (with button) which is on the wrong network, 
-        //       setQuery is updated after this point?
     }
 
     const pending = () => {
+        console.log('pending tracker');
         setError('There is already an pending confirmation in your MetaMask.');
         setQuery('pending');
         setTimeout(() => {
